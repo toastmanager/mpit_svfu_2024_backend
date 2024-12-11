@@ -1,0 +1,30 @@
+model User {
+    id       Int    @id @default(autoincrement())
+    email    String @unique
+    password String
+
+    fullname    String
+    description String?
+    tel         String? @unique
+    roles       Role[]
+    isVerified  Boolean @default(false)
+    isActive    Boolean @default(true)
+
+    avatarKey String?
+    bannerKey String?
+
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+
+    place        Place[]
+    placeReviews PlaceReview[]
+}
+
+enum Role {
+    MODERATOR
+}
+
+model BlockedRefreshToken {
+    id      String @id @default(uuid())
+    tokenId String @unique
+}
