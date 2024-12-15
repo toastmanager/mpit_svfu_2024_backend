@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from 'src/prisma.service';
-import { Place, PlaceReview, Prisma } from '@prisma/client';
+import { Place, Prisma } from '@prisma/client';
+import { calcScore } from './places.utils';
 
 @Injectable()
 export class PlacesService {
@@ -31,7 +32,7 @@ export class PlacesService {
 		});
 		return entities.map((entity, _) => ({
 			...entity,
-			score: this.calcScore(entity.reviews),
+			score: calcScore(entity.reviews),
 		}));
 	}
 
@@ -48,7 +49,7 @@ export class PlacesService {
 				reviews: true,
 			},
 		});
-		return { ...entity, score: this.calcScore(entity.reviews) };
+		return { ...entity, score: calcScore(entity.reviews) };
 	}
 
 	async update(params: {
@@ -66,16 +67,5 @@ export class PlacesService {
 		return this.prisma.place.delete({
 			where: where,
 		});
-	}
-
-	calcScore(reviews?: PlaceReview[]): string {
-		let scoreSum = 0;
-		if (reviews && reviews.length > 0) {
-			for (const review of reviews) {
-				scoreSum += review.score;
-			}
-			return (scoreSum / reviews.length).toFixed(2);
-		}
-		return '0';
 	}
 }

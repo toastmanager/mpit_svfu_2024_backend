@@ -16,11 +16,12 @@ import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { RoleDto } from './dto/give-role.dto';
-import { Role, User } from '@prisma/client';
+import { Prisma, Role, User } from '@prisma/client';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { JwtAuthGuard } from 'src/auth/guards/jwt.guard';
 import { ApiBearerAuth } from '@nestjs/swagger';
 import { RolesGuard } from 'src/auth/guards/roles.guard';
+import { calcScore } from 'src/places/places.utils';
 
 @Controller('users')
 export class UsersController {
@@ -46,15 +47,43 @@ export class UsersController {
 	@ApiBearerAuth()
 	// @Roles(Role.MODERATOR)
 	// @UseGuards(JwtAuthGuard, RolesGuard)
-	findOne(@Param('id') id: string): Promise<User> {
+	async findOne(@Param('id') id: string): Promise<any> {
 		if (isNaN(parseInt(id))) {
-			throw new BadRequestException('Id must be int')
+			throw new BadRequestException('Id must be int');
 		}
-		return this.usersService.findOne({
+
+		const user: Prisma.UserGetPayload<{
+			include: {
+				place: true;
+				placeReviews: true;
+			};
+		}> = await this.usersService.findOne({
 			where: {
 				id: +id,
 			},
+			include: {
+				place: {
+					where: {
+						authorId: +id,
+						isPublished: true,
+					},
+				},
+				placeReviews: {
+					where: {
+						authorId: +id,
+					},
+				},
+			},
 		});
+
+		const score = calcScore(user.placeReviews);
+
+		return {
+			...user,
+			publishedPlacesNum: user.place.length,
+			totalReviewsNum: user.placeReviews.length,
+			score: score,
+		};
 	}
 
 	@Patch(':id')

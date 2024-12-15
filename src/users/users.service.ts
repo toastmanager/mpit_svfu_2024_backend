@@ -32,10 +32,12 @@ export class UsersService {
 	async findOne(params: {
 		where: Prisma.UserWhereUniqueInput;
 		omit?: Prisma.UserOmit;
-	}): Promise<User | null> {
+		include?: Prisma.UserInclude;
+	}) {
 		return this.prisma.user.findUnique({
 			where: params.where,
 			omit: params.omit,
+			include: params.include,
 		});
 	}
 
