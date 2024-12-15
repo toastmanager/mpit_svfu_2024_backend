@@ -11,8 +11,8 @@ model Place {
     prevPrice       Decimal   @default(0) @db.Money
     isPublished     Boolean   @default(false)
     onModeration    Boolean   @default(false)
-    start           DateTime
-    end             DateTime
+    start           DateTime?
+    end             DateTime?
     imageKeys       String[]
 
     createdAt DateTime @default(now())

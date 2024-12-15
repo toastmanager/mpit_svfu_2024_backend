@@ -52,10 +52,18 @@ export class PlacesController {
 	@ApiQuery({ name: 'types', required: false, type: String })
 	@ApiQuery({ name: 'age_restriction', required: false, type: String })
 	@ApiQuery({ name: 'activities', required: false, type: String })
+	@ApiQuery({ name: 'min_price', required: false, type: Number })
+	@ApiQuery({ name: 'max_price', required: false, type: Number })
+	@ApiQuery({ name: 'start', required: false, type: Date })
+	@ApiQuery({ name: 'end', required: false, type: Date })
 	findAll(
 		@Query('types') typesQuery?: string,
 		@Query('age_restriction') ageRestrictionsQuery?: string,
 		@Query('activities') activitiesQuery?: string,
+		@Query('min_price') minPriceQuery?: string,
+		@Query('max_price') maxPriceQuery?: string,
+		@Query('start') startQuery?: string,
+		@Query('end') endQuery?: string,
 	) {
 		const types = typesQuery
 			? typesQuery.split(',').reduce((result, element) => {
@@ -65,7 +73,7 @@ export class PlacesController {
 					}
 					return result;
 				}, [])
-			: null;
+			: undefined;
 		const ageRestriction = isNaN(Number(ageRestrictionsQuery))
 			? undefined
 			: Number(ageRestrictionsQuery);
@@ -77,26 +85,73 @@ export class PlacesController {
 					}
 					return result;
 				}, [])
-			: null;
+			: undefined;
+		const minPrice = isNaN(Number(minPriceQuery))
+			? undefined
+			: Number(minPriceQuery);
+		const maxPrice = isNaN(Number(maxPriceQuery))
+			? undefined
+			: Number(maxPriceQuery);
+		const start =
+			startQuery == undefined || startQuery == ''
+				? new Date()
+				: new Date(startQuery);
+		const end =
+			endQuery == undefined || endQuery == ''
+				? undefined
+				: new Date(endQuery);
 
 		return this.placesService.findAll({
+			orderBy: {
+				start: 'asc',
+			},
 			where: {
 				isPublished: true,
-				type: types
-					? {
-							in: types,
-						}
-					: undefined,
-				ageRestrictions: ageRestriction
-					? {
-							lte: ageRestriction,
-						}
-					: undefined,
-				activity: activities
-					? {
-							in: activities,
-						}
-					: undefined,
+				AND: [
+					end != undefined
+						? {
+								OR: [
+									{
+										start: {
+											equals: null,
+										},
+									},
+									{
+										start: {
+											lte: end,
+										},
+									},
+								],
+							}
+						: {},
+					{
+						OR: [
+							{
+								end: {
+									equals: null,
+								},
+							},
+							{
+								end: {
+									gte: start,
+								},
+							},
+						],
+					},
+				],
+				type: {
+					in: types,
+				},
+				ageRestrictions: {
+					lte: ageRestriction,
+				},
+				activity: {
+					in: activities,
+				},
+				price: {
+					gte: minPrice,
+					lte: maxPrice,
+				},
 			},
 		});
 	}
