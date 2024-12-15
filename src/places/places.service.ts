@@ -1,14 +1,10 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from 'src/prisma.service';
 import { Place, PlaceReview, Prisma } from '@prisma/client';
-import { PlacesStorage } from './places.storage';
 
 @Injectable()
 export class PlacesService {
-	constructor(
-		private readonly prisma: PrismaService,
-		private readonly placesStorage: PlacesStorage,
-	) {}
+	constructor(private readonly prisma: PrismaService) {}
 
 	async create(data: Prisma.PlaceCreateInput): Promise<Place> {
 		return this.prisma.place.create({
@@ -31,9 +27,12 @@ export class PlacesService {
 			cursor,
 			where,
 			orderBy,
-			include,
+			include: { ...include, reviews: true },
 		});
-		return entities;
+		return entities.map((entity, _) => ({
+			...entity,
+			score: this.calcScore(entity.reviews),
+		}));
 	}
 
 	async findOne(params: {
@@ -49,7 +48,7 @@ export class PlacesService {
 				reviews: true,
 			},
 		});
-		return entity;
+		return { ...entity, score: this.calcScore(entity.reviews) };
 	}
 
 	async update(params: {
@@ -69,11 +68,14 @@ export class PlacesService {
 		});
 	}
 
-	async calcScore(reviews: PlaceReview[]) {
-		let score = 0;
-		for (const review of reviews) {
-			score += review.score;
+	calcScore(reviews?: PlaceReview[]): string {
+		let scoreSum = 0;
+		if (reviews && reviews.length > 0) {
+			for (const review of reviews) {
+				scoreSum += review.score;
+			}
+			return (scoreSum / reviews.length).toFixed(2);
 		}
-		return (score / reviews.length).toFixed(2)
+		return '0';
 	}
 }

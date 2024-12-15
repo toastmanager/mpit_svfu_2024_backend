@@ -10,13 +10,14 @@ import {
 	UseGuards,
 	UseInterceptors,
 	UploadedFile,
+	Query,
 } from '@nestjs/common';
 import { PlacesService } from './places.service';
 import { CreatePlaceDto } from './dto/create-place.dto';
 import { UpdatePlaceDto } from './dto/update-place.dto';
 import { JwtAuthGuard } from 'src/auth/guards/jwt.guard';
-import { Place, Prisma } from '@prisma/client';
-import { ApiBearerAuth, ApiConsumes } from '@nestjs/swagger';
+import { Activity, Place, PlaceType, Prisma } from '@prisma/client';
+import { ApiBearerAuth, ApiConsumes, ApiQuery } from '@nestjs/swagger';
 import { PlaceReviewsService } from './reviews/place-reviews.service';
 import { CreatePlaceReviewDto } from './reviews/dto/create-place-review.dto';
 import { UpdatePlaceReviewDto } from './reviews/dto/update-place-review.dto';
@@ -48,11 +49,55 @@ export class PlacesController {
 	}
 
 	@Get()
-	findAll() {
+	@ApiQuery({ name: 'types', required: false, type: String })
+	@ApiQuery({ name: 'age_restriction', required: false, type: String })
+	@ApiQuery({ name: 'activities', required: false, type: String })
+	findAll(
+		@Query('types') typesQuery?: string,
+		@Query('age_restriction') ageRestrictionsQuery?: string,
+		@Query('activities') activitiesQuery?: string,
+	) {
+		const types = typesQuery
+			? typesQuery.split(',').reduce((result, element) => {
+					const type = PlaceType[element];
+					if (type) {
+						result.push(type);
+					}
+					return result;
+				}, [])
+			: null;
+		const ageRestriction = isNaN(Number(ageRestrictionsQuery))
+			? undefined
+			: Number(ageRestrictionsQuery);
+		const activities: Activity[] = activitiesQuery
+			? activitiesQuery.split(',').reduce((result, element) => {
+					const activity = Activity[element];
+					if (activity) {
+						result.push(activity);
+					}
+					return result;
+				}, [])
+			: null;
+
 		return this.placesService.findAll({
 			where: {
 				isPublished: true,
-			}
+				type: types
+					? {
+							in: types,
+						}
+					: undefined,
+				ageRestrictions: ageRestriction
+					? {
+							lte: ageRestriction,
+						}
+					: undefined,
+				activity: activities
+					? {
+							in: activities,
+						}
+					: undefined,
+			},
 		});
 	}
 
@@ -62,9 +107,9 @@ export class PlacesController {
 			where: {
 				authorId: +id,
 				isPublished: true,
-			}
+			},
 		});
-		return  places
+		return places;
 	}
 
 	@Get('user/:id/reviews')
