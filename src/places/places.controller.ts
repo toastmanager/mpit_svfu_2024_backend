@@ -56,6 +56,7 @@ export class PlacesController {
 	@ApiQuery({ name: 'max_price', required: false, type: Number })
 	@ApiQuery({ name: 'start', required: false, type: Date })
 	@ApiQuery({ name: 'end', required: false, type: Date })
+	@ApiQuery({ name: 'search', required: false, type: String })
 	findAll(
 		@Query('types') typesQuery?: string,
 		@Query('age_restriction') ageRestrictionsQuery?: string,
@@ -64,6 +65,7 @@ export class PlacesController {
 		@Query('max_price') maxPriceQuery?: string,
 		@Query('start') startQuery?: string,
 		@Query('end') endQuery?: string,
+		@Query('search') searchQuery?: string,
 	) {
 		const types = typesQuery
 			? typesQuery.split(',').reduce((result, element) => {
@@ -100,6 +102,10 @@ export class PlacesController {
 			endQuery == undefined || endQuery == ''
 				? undefined
 				: new Date(endQuery);
+		const search =
+			searchQuery == undefined || searchQuery == ''
+				? undefined
+				: searchQuery;
 
 		return this.placesService.findAll({
 			orderBy: {
@@ -107,6 +113,28 @@ export class PlacesController {
 			},
 			where: {
 				isPublished: true,
+				OR: search
+					? [
+							{
+								title: {
+									contains: search,
+									mode: 'insensitive',
+								},
+							},
+							{
+								description: {
+									contains: search,
+									mode: 'insensitive',
+								},
+							},
+							{
+								locationName: {
+									contains: search,
+									mode: 'insensitive',
+								},
+							},
+						]
+					: undefined,
 				AND: [
 					end != undefined
 						? {
