@@ -38,14 +38,21 @@ export class PlacesController {
 	@ApiBearerAuth()
 	create(@Request() req: any, @Body() createPlaceDto: CreatePlaceDto) {
 		const { user } = req;
-		return this.placesService.create({
-			...createPlaceDto,
-			author: {
-				connect: {
-					id: user.id,
+		const { longitude, latitude, ...clearCreatePlaceDto } = createPlaceDto;
+		return this.placesService.create(
+			{
+				...clearCreatePlaceDto,
+				author: {
+					connect: {
+						id: user.id,
+					},
 				},
 			},
-		});
+			{
+				longitude: longitude,
+				latitude: latitude,
+			},
+		);
 	}
 
 	@Get()
@@ -170,7 +177,7 @@ export class PlacesController {
 				type: {
 					in: types,
 				},
-				ageRestrictions: {
+				ageRestriction: {
 					lte: ageRestriction,
 				},
 				activity: {
@@ -295,11 +302,16 @@ export class PlacesController {
 	@UseGuards(JwtAuthGuard)
 	@ApiBearerAuth()
 	update(@Param('id') id: string, @Body() updatePlaceDto: UpdatePlaceDto) {
+		const {longitude, latitude, ...clearUpdatePlaceDto} = updatePlaceDto;
 		return this.placesService.update({
 			where: {
 				id: +id,
 			},
-			data: updatePlaceDto,
+			data: clearUpdatePlaceDto,
+			coords: {
+				longitude: longitude,
+				latitude: latitude,
+			}
 		});
 	}
 
@@ -310,6 +322,12 @@ export class PlacesController {
 		return this.placesService.remove({
 			id: +id,
 		});
+	}
+
+	@Get(':id/closest')
+	async findClosest(@Param('id') id: string) {
+		const places = await this.placesService.findClosest(+id);
+		return places;
 	}
 
 	@Get(':id/reviews')

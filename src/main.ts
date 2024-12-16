@@ -15,7 +15,11 @@ async function bootstrap() {
 	})
 		.setGlobalPrefix(APP_ROUTE_PREFIX)
 		.useGlobalPipes(new ValidationPipe())
-		.use(cookieParser());
+		.use(cookieParser())
+		.enableCors({
+			credentials: true,
+			origin: true,
+		});
 
 	const config = new DocumentBuilder()
 		.setTitle('Ya Tvoi Orientir API Docs')

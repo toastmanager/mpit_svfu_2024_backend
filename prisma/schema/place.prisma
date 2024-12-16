@@ -1,19 +1,22 @@
 model Place {
     id Int @id @default(autoincrement())
 
-    title           String
-    type            PlaceType
-    description     String
-    locationName    String
-    activity        Activity
-    ageRestrictions Int       @default(0)
-    price           Decimal   @db.Money
-    prevPrice       Decimal   @default(0) @db.Money
-    isPublished     Boolean   @default(false)
-    onModeration    Boolean   @default(false)
-    start           DateTime?
-    end             DateTime?
-    imageKeys       String[]
+    title          String
+    type           PlaceType
+    description    String
+    locationName   String
+    activity       Activity
+    ageRestriction Int                                   @default(0) @map("ageRestrictions")
+    price          Decimal                               @db.Money
+    prevPrice      Decimal                               @default(0) @db.Money
+    isPublished    Boolean                               @default(false)
+    onModeration   Boolean                               @default(false)
+    start          DateTime?
+    end            DateTime?
+    imageKeys      String[]
+    coords         Unsupported("geometry(Point, 4326)")?
+    address        String?
+    contacts       String[]
 
     createdAt DateTime @default(now())
     updatedAt DateTime @updatedAt
@@ -22,6 +25,9 @@ model Place {
     author   User @relation(fields: [authorId], references: [id])
 
     reviews PlaceReview[]
+
+    @@index([coords], name: "location_idx", type: Gist)
+    @@map("places")
 }
 
 enum PlaceType {
@@ -53,4 +59,6 @@ model PlaceReview {
     author   User  @relation(fields: [authorId], references: [id])
     placeId  Int
     place    Place @relation(fields: [placeId], references: [id])
+
+    @@map("place_reviews")
 }

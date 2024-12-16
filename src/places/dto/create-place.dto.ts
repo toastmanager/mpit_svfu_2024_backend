@@ -1,6 +1,7 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Activity, PlaceType } from '@prisma/client';
 import {
+	IsArray,
 	IsEnum,
 	IsInt,
 	IsISO8601,
@@ -32,7 +33,7 @@ export class CreatePlaceDto {
 
 	@ApiProperty()
 	@IsInt()
-	ageRestrictions: number;
+	ageRestriction: number;
 
 	@ApiProperty()
 	@IsNumber()
@@ -44,9 +45,34 @@ export class CreatePlaceDto {
 	prevPrice: number;
 
 	@ApiProperty()
-	start: Date;
+	@IsNumber()
+	longitude: number;
 
 	@ApiProperty()
+	@IsNumber()
+	latitude: number;
+
+	@IsOptional()
+	@ApiPropertyOptional()
+	@IsISO8601()
+	start: Date;
+
+	@IsOptional()
+	@ApiPropertyOptional()
 	@IsISO8601()
 	end: Date;
+
+	@ApiPropertyOptional()
+	@IsOptional()
+	@IsString()
+	address: string;
+
+	@ApiPropertyOptional({
+		type: String,
+		isArray: true,
+	})
+	@IsOptional()
+	@IsArray()
+	@IsString()
+	contacts: string[];
 }

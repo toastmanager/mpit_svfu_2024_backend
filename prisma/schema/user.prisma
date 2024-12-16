@@ -18,6 +18,8 @@ model User {
 
     place        Place[]
     placeReviews PlaceReview[]
+
+    @@map("users")
 }
 
 enum Role {
@@ -27,4 +29,6 @@ enum Role {
 model BlockedRefreshToken {
     id      String @id @default(uuid())
     tokenId String @unique
+
+    @@map("blocked_refresh_tokens")
 }
