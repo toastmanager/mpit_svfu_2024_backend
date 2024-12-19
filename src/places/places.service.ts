@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from 'src/prisma.service';
-import { Place, Prisma } from '@prisma/client';
+import { Place, PlaceType, Prisma } from '@prisma/client';
 import { calcScore } from './places.utils';
 
 @Injectable()
@@ -10,8 +10,8 @@ export class PlacesService {
 	async create(
 		data: Prisma.PlaceCreateInput,
 		coords: {
-			longitude: number;
 			latitude: number;
+			longitude: number;
 		},
 	): Promise<Place> {
 		const place = await this.prisma.place.create({
@@ -19,7 +19,7 @@ export class PlacesService {
 		});
 		await this.prisma.$executeRaw`
 			UPDATE places
-			SET coords=ST_SetSRID(ST_MakePoint(${coords.latitude}, ${coords.longitude}), 4326)
+			SET coords=ST_SetSRID(ST_MakePoint(${coords.longitude}, ${coords.latitude}), 4326)
 			WHERE id=${place.id}
 		`;
 		const updatedPlace = await this.prisma.place.findUnique({
@@ -65,8 +65,8 @@ export class PlacesService {
 				author: true,
 				reviews: {
 					include: {
-						author: true
-					}
+						author: true,
+					},
 				},
 			},
 		});
@@ -103,15 +103,15 @@ export class PlacesService {
 	}
 
 	async findClosest(id: number): Promise<any> {
-		const { longitude, latitude } = (
+		const { longitude, latitude, type } = (
 			await this.prisma.$queryRaw`
-				SELECT ST_X(coords) AS longitude, ST_Y(coords) AS latitude
+				SELECT ST_X(coords) AS longitude, ST_Y(coords) AS latitude, type
 				FROM places
 				WHERE id=${id}
 			`
 		)[0];
 
-		const maxDistanceKm = 200;
+		const maxDistanceKm = [PlaceType.NATURE].includes(type) ? 60 : 10;
 		const closestPlacesData: {
 			id: number;
 			distance: number;

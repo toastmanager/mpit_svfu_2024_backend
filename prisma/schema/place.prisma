@@ -38,6 +38,8 @@ enum PlaceType {
     BAR
     MOVIE_THEATER
     NATURE
+    MUSEUM
+    CONCERT
 }
 
 enum Activity {

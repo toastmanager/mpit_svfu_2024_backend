@@ -49,8 +49,8 @@ export class PlacesController {
 				},
 			},
 			{
-				longitude: longitude,
 				latitude: latitude,
+				longitude: longitude,
 			},
 		);
 	}
@@ -95,12 +95,14 @@ export class PlacesController {
 					return result;
 				}, [])
 			: undefined;
-		const minPrice = isNaN(Number(minPriceQuery))
-			? undefined
-			: Number(minPriceQuery);
-		const maxPrice = isNaN(Number(maxPriceQuery))
-			? undefined
-			: Number(maxPriceQuery);
+		const minPrice =
+			minPriceQuery || isNaN(Number(minPriceQuery))
+				? undefined
+				: Number(minPriceQuery);
+		const maxPrice =
+			maxPriceQuery == '' || isNaN(Number(maxPriceQuery))
+				? undefined
+				: Number(maxPriceQuery);
 		const start =
 			startQuery == undefined || startQuery == ''
 				? new Date()
@@ -143,7 +145,7 @@ export class PlacesController {
 						]
 					: undefined,
 				AND: [
-					end != undefined
+					start != undefined
 						? {
 								OR: [
 									{
@@ -153,26 +155,28 @@ export class PlacesController {
 									},
 									{
 										start: {
+											gte: start,
+										},
+									},
+								],
+							}
+						: {},
+					end != undefined
+						? {
+								OR: [
+									{
+										end: {
+											equals: null,
+										},
+									},
+									{
+										end: {
 											lte: end,
 										},
 									},
 								],
 							}
 						: {},
-					{
-						OR: [
-							{
-								end: {
-									equals: null,
-								},
-							},
-							{
-								end: {
-									gte: start,
-								},
-							},
-						],
-					},
 				],
 				type: {
 					in: types,
@@ -212,6 +216,9 @@ export class PlacesController {
 			},
 			include: {
 				author: true,
+			},
+			orderBy: {
+				createdAt: 'desc',
 			},
 		});
 	}
@@ -302,7 +309,7 @@ export class PlacesController {
 	@UseGuards(JwtAuthGuard)
 	@ApiBearerAuth()
 	update(@Param('id') id: string, @Body() updatePlaceDto: UpdatePlaceDto) {
-		const {longitude, latitude, ...clearUpdatePlaceDto} = updatePlaceDto;
+		const { longitude, latitude, ...clearUpdatePlaceDto } = updatePlaceDto;
 		return this.placesService.update({
 			where: {
 				id: +id,
@@ -311,7 +318,7 @@ export class PlacesController {
 			coords: {
 				longitude: longitude,
 				latitude: latitude,
-			}
+			},
 		});
 	}
 

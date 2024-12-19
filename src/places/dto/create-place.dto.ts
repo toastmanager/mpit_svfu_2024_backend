@@ -73,6 +73,8 @@ export class CreatePlaceDto {
 	})
 	@IsOptional()
 	@IsArray()
-	@IsString()
+	@IsString({
+		each: true,
+	})
 	contacts: string[];
 }
