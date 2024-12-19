@@ -70,7 +70,7 @@ export class PlacesService {
 				},
 			},
 		});
-		return { ...entity, score: calcScore(entity.reviews) };
+		return { ...entity, score: calcScore(entity?.reviews) };
 	}
 
 	async update(params: {
@@ -127,15 +127,33 @@ export class PlacesService {
 
 		const res = [];
 		for (const placeData of closestPlacesData) {
-			if (placeData.distance == 0) {
+			if (placeData.id === id) {
 				continue;
 			}
-			const place = await this.findOne({
+			const place = await this.prisma.place.findFirst({
 				where: {
 					id: placeData.id,
+					isPublished: true,
+					OR: [
+						{
+							start: {
+								equals: null,
+							},
+						},
+					],
+				},
+				include: {
+					author: true,
+					reviews: {
+						include: {
+							author: true,
+						},
+					},
 				},
 			});
-			res.push({ ...place, distance: placeData.distance });
+			if (place) {
+				res.push({ ...place, distance: placeData.distance, score: calcScore(place.reviews) });
+			}
 		}
 
 		return res;

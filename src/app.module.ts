@@ -3,6 +3,7 @@ import { UsersModule } from './users/users.module';
 import { AuthModule } from './auth/auth.module';
 import { ConfigifyModule } from '@itgorillaz/configify';
 import { PlacesModule } from './places/places.module';
+import { RoutesModule } from './routes/routes.module';
 
 @Module({
 	imports: [
@@ -10,6 +11,7 @@ import { PlacesModule } from './places/places.module';
 		AuthModule,
 		ConfigifyModule.forRootAsync(),
 		PlacesModule,
+		RoutesModule,
 	],
 	controllers: [],
 	providers: [],

@@ -23,7 +23,8 @@ model Place {
 
     authorId Int
     author   User @relation(fields: [authorId], references: [id])
-
+    
+    routes Route[]
     reviews PlaceReview[]
 
     @@index([coords], name: "location_idx", type: Gist)

@@ -1,0 +1,14 @@
+model Route {
+    id    Int    @id @default(autoincrement())
+    title String
+
+    authorId Int  @map("authorid")
+    author   User @relation(fields: [authorId], references: [id])
+
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt()
+
+    places Place[]
+
+    @@map("routes")
+}
