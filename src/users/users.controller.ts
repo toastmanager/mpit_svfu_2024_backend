@@ -45,8 +45,8 @@ export class UsersController {
 
 	@Get(':id')
 	@ApiBearerAuth()
-	// @Roles(Role.MODERATOR)
-	// @UseGuards(JwtAuthGuard, RolesGuard)
+	@Roles(Role.MODERATOR)
+	@UseGuards(JwtAuthGuard, RolesGuard)
 	async findOne(@Param('id') id: string): Promise<any> {
 		if (isNaN(parseInt(id))) {
 			throw new BadRequestException('Id must be int');
@@ -96,7 +96,6 @@ export class UsersController {
 	): Promise<User> {
 		const { user } = req;
 
-		// TODO: SECURITY | Add additional database check for role
 		if (user.id !== id && !user.roles?.includes(Role.MODERATOR)) {
 			throw new ForbiddenException(
 				'You do not have permissions to update this user',
@@ -117,7 +116,6 @@ export class UsersController {
 	remove(@Request() req: any, @Param('id') id: string): Promise<User> {
 		const { user } = req;
 
-		// TODO: SECURITY | Add additional database check for role
 		if (user.id !== +id && !user.roles?.includes(Role.MODERATOR)) {
 			throw new ForbiddenException(
 				'You do not have permissions to delete this user',
@@ -194,7 +192,6 @@ export class UsersController {
 	): Promise<Role[]> {
 		const { user: currentUser } = req;
 
-		// TODO: SECURITY | Add additional database check for role
 		if (
 			currentUser.id !== id &&
 			!currentUser.roles?.includes(Role.MODERATOR)

@@ -3,16 +3,21 @@ import {
 	CanActivate,
 	ExecutionContext,
 	ForbiddenException,
+	UnauthorizedException,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { Role } from '@prisma/client';
 import { ROLES_KEY } from '../decorators/roles.decorator';
+import { PrismaService } from 'src/prisma.service';
 
 @Injectable()
 export class RolesGuard implements CanActivate {
-	constructor(private reflector: Reflector) {}
+	constructor(
+		private readonly reflector: Reflector,
+		private readonly prisma: PrismaService,
+	) {}
 
-	canActivate(context: ExecutionContext): boolean {
+	async canActivate(context: ExecutionContext): Promise<boolean> {
 		const requiredRoles = this.reflector.getAllAndOverride<Role[]>(
 			ROLES_KEY,
 			[context.getHandler(), context.getClass()],
@@ -20,9 +25,26 @@ export class RolesGuard implements CanActivate {
 		if (!requiredRoles) {
 			return true;
 		}
+
 		const { user } = context.switchToHttp().getRequest();
 		if (requiredRoles.some((role) => user.roles?.includes(role))) {
-			return true;
+			const dbUser = await this.prisma.user.findUnique({
+				where: {
+					id: user.id,
+				},
+			});
+
+			if (!dbUser) {
+				throw new UnauthorizedException('User not found');
+			}
+
+			if (requiredRoles.some((role) => dbUser.roles?.includes(role))) {
+				return true;
+			}
+
+			throw new ForbiddenException(
+				'You do not have a role to access this action',
+			);
 		} else {
 			throw new ForbiddenException(
 				'You do not have a role to access this action',
