@@ -27,28 +27,22 @@ export class RolesGuard implements CanActivate {
 		}
 
 		const { user } = context.switchToHttp().getRequest();
-		if (requiredRoles.some((role) => user.roles?.includes(role))) {
-			const dbUser = await this.prisma.user.findUnique({
-				where: {
-					id: user.id,
-				},
-			});
+		const dbUser = await this.prisma.user.findUnique({
+			where: {
+				id: user.id,
+			},
+		});
 
-			if (!dbUser) {
-				throw new UnauthorizedException('User not found');
-			}
-
-			if (requiredRoles.some((role) => dbUser.roles?.includes(role))) {
-				return true;
-			}
-
-			throw new ForbiddenException(
-				'You do not have a role to access this action',
-			);
-		} else {
-			throw new ForbiddenException(
-				'You do not have a role to access this action',
-			);
+		if (!dbUser) {
+			throw new UnauthorizedException('User not found');
 		}
+
+		if (requiredRoles.some((role) => dbUser.roles?.includes(role))) {
+			return true;
+		}
+
+		throw new ForbiddenException(
+			'You do not have a role to access this action',
+		);
 	}
 }

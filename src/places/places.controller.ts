@@ -21,7 +21,7 @@ import { ApiBearerAuth, ApiConsumes, ApiQuery } from '@nestjs/swagger';
 import { PlaceReviewsService } from './reviews/place-reviews.service';
 import { CreatePlaceReviewDto } from './reviews/dto/create-place-review.dto';
 import { UpdatePlaceReviewDto } from './reviews/dto/update-place-review.dto';
-import { PlacesStorage } from './places.storage';
+import { PlacesStorageRepository } from './places.storage';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { UploadPlaceImagesDto } from './dto/upload-place-images.dto';
 
@@ -30,7 +30,7 @@ export class PlacesController {
 	constructor(
 		private readonly placesService: PlacesService,
 		private readonly reviewsService: PlaceReviewsService,
-		private readonly placesStorage: PlacesStorage,
+		private readonly placesStorage: PlacesStorageRepository,
 	) {}
 
 	@Post()
@@ -261,7 +261,11 @@ export class PlacesController {
 
 		const imageUrls: string[] = [];
 		for (const key of imageKeys) {
-			imageUrls.push(await this.placesStorage.get(key));
+			imageUrls.push(
+				await this.placesStorage.getUrl({
+					objectKey: key,
+				}),
+			);
 		}
 
 		return imageUrls;
@@ -277,10 +281,10 @@ export class PlacesController {
 		@Body() _: UploadPlaceImagesDto,
 		@UploadedFile() image: Express.Multer.File,
 	) {
-		const imageKey = await this.placesStorage.put(
-			image.originalname,
-			image.buffer,
-		);
+		const imageKey = await this.placesStorage.put({
+			file: image.buffer,
+			filename: image.originalname,
+		});
 
 		await this.placesService.update({
 			where: {
