@@ -45,8 +45,6 @@ export class UsersController {
 
 	@Get(':id')
 	@ApiBearerAuth()
-	@Roles(Role.MODERATOR)
-	@UseGuards(JwtAuthGuard, RolesGuard)
 	async findOne(@Param('id') id: string): Promise<any> {
 		if (isNaN(parseInt(id))) {
 			throw new BadRequestException('Id must be int');
