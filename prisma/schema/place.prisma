@@ -5,6 +5,7 @@ model Place {
     type           PlaceType
     description    String
     locationName   String
+    redirectUrl    String?
     activity       Activity
     ageRestriction Int                                   @default(0) @map("ageRestrictions")
     price          Decimal                               @db.Money
@@ -23,8 +24,8 @@ model Place {
 
     authorId Int
     author   User @relation(fields: [authorId], references: [id])
-    
-    routes Route[]
+
+    routes  Route[]
     reviews PlaceReview[]
 
     @@index([coords], name: "location_idx", type: Gist)
@@ -41,6 +42,9 @@ enum PlaceType {
     NATURE
     MUSEUM
     CONCERT
+    HOTEL
+    MOTEL
+    HOSTEL
 }
 
 enum Activity {

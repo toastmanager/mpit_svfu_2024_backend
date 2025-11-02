@@ -8,6 +8,7 @@ import {
 	IsNumber,
 	IsOptional,
 	IsString,
+	IsUrl,
 } from 'class-validator';
 
 export class CreatePlaceDto {
@@ -26,6 +27,11 @@ export class CreatePlaceDto {
 	@ApiProperty()
 	@IsString()
 	locationName: string;
+
+	@ApiProperty()
+	@IsString()
+	@IsUrl()
+	redirectUrl: string;
 
 	@ApiProperty()
 	@IsEnum(Activity)
