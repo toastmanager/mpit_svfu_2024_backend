@@ -300,6 +300,37 @@ export class PlacesController {
 		return imageKey;
 	}
 
+	@Delete(':id/images/:imageKey')
+	@UseGuards(JwtAuthGuard)
+	@ApiBearerAuth()
+	async deleteImage(
+		@Param('id') id: string,
+		@Param('imageKey') imageKey: string,
+	) {
+		await this.placesStorage.delete({
+			objectKey: imageKey,
+		});
+
+		const place: Place = await this.placesService.findOne({
+			where: {
+				id: +id,
+			},
+		});
+
+		const updatedPlace = await this.placesService.update({
+			where: {
+				id: +id,
+			},
+			data: {
+				imageKeys: {
+					set: place.imageKeys.filter((key) => key != imageKey),
+				},
+			},
+		});
+
+		return updatedPlace;
+	}
+
 	@Get(':id')
 	findOne(@Param('id') id: string) {
 		return this.placesService.findOne({
