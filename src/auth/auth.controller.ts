@@ -5,15 +5,20 @@ import {
 	UseGuards,
 	Request,
 	Response,
-	BadRequestException,
+	InternalServerErrorException,
 } from '@nestjs/common';
-import { AuthService, Token } from './auth.service';
+import { AuthService } from './auth.service';
+import { AuthTokenDto } from './dto/auth-token.dto';
 import { LoginDto } from './dto/login.dto';
 import { CreateUserDto } from 'src/users/dto/create-user.dto';
-import { TokenRefreshDto } from './dto/token-refresh.dto';
 import { UsersService } from 'src/users/users.service';
 import { JwtAuthGuard } from './guards/jwt.guard';
-import { ApiBearerAuth } from '@nestjs/swagger';
+import {
+	ApiBearerAuth,
+	ApiInternalServerErrorResponse,
+	ApiOkResponse,
+	ApiUnauthorizedResponse,
+} from '@nestjs/swagger';
 
 const refreshTokenCookieOptions = {
 	expires: new Date(new Date().getTime() + 30 * 24 * 60 * 60 * 1000), // Change according to refresh token expire time
@@ -73,42 +78,31 @@ export class AuthController {
 	}
 
 	@Post('refresh')
+	@ApiOkResponse({
+		type: AuthTokenDto,
+	})
+	@ApiUnauthorizedResponse()
+	@ApiInternalServerErrorResponse()
 	async refresh(
-		@Body() tokenRefreshDto: TokenRefreshDto,
 		@Request() request: any,
 		@Response({ passthrough: true }) response: any,
 	) {
-		let newToken: Token | null = null;
+		const cookieRefreshToken = request.cookies['refresh_token'];
 
-		if (request.cookies) {
-			const cookieRefreshToken = request.cookies['refresh_token'];
-			if (cookieRefreshToken) {
-				try {
-					newToken =
-						await this.authService.refresh(cookieRefreshToken);
-				} catch (error) {
-					console.log(error);
-					throw error;
-				}
-			}
-		} else if (tokenRefreshDto.refreshToken) {
-			try {
-				newToken = await this.authService.refresh(
-					tokenRefreshDto.refreshToken,
-				);
-			} catch (error) {
-				console.log(error);
-				throw error;
-			}
+		try {
+			const newAuthToken =
+				await this.authService.refresh(cookieRefreshToken);
+
+			await this.setRefreshTokenInCookie(
+				response,
+				newAuthToken.refreshToken,
+			);
+
+			return newAuthToken;
+		} catch (error) {
+			console.error(error);
+			throw new InternalServerErrorException('Failed to refresh token');
 		}
-
-		if (!newToken) {
-			throw new BadRequestException('Refresh token is not provided');
-		}
-
-		await this.setRefreshTokenInCookie(response, newToken.refreshToken);
-
-		return newToken;
 	}
 
 	async setRefreshTokenInCookie(

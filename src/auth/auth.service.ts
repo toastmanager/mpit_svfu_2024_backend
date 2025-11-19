@@ -7,12 +7,7 @@ import { User } from '@prisma/client';
 import { JwtService } from '@nestjs/jwt';
 import { AuthConfig } from './auth.config';
 import * as authUtils from './auth.utils';
-
-export type Token = {
-	accessToken: string;
-	refreshToken: string;
-	tokenType: string;
-};
+import { AuthTokenDto } from './dto/auth-token.dto';
 
 @Injectable()
 export class AuthService {
@@ -23,7 +18,7 @@ export class AuthService {
 		private readonly authConfig: AuthConfig,
 	) {}
 
-	async login(loginDto: LoginDto): Promise<Token> {
+	async login(loginDto: LoginDto): Promise<AuthTokenDto> {
 		const user = await this.usersService.findOne({
 			where: { email: loginDto.email },
 			omit: {
@@ -45,7 +40,7 @@ export class AuthService {
 		return await this.createToken(user);
 	}
 
-	async register(createUserDto: CreateUserDto): Promise<Token> {
+	async register(createUserDto: CreateUserDto): Promise<AuthTokenDto> {
 		const userWithThatEmail = await this.usersService.findOne({
 			where: { email: createUserDto.email },
 		});
@@ -78,7 +73,7 @@ export class AuthService {
 		return await this.createToken(newUser);
 	}
 
-	async refresh(refreshToken: string): Promise<Token> {
+	async refresh(refreshToken: string): Promise<AuthTokenDto> {
 		try {
 			const payload = await this.jwtService.verifyAsync(refreshToken);
 
@@ -103,7 +98,7 @@ export class AuthService {
 		}
 	}
 
-	async createToken(user: User): Promise<Token> {
+	async createToken(user: User): Promise<AuthTokenDto> {
 		return authUtils.createTokenObject(
 			await this.createAccessToken(user),
 			await this.createRefreshToken(user),

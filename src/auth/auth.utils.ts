@@ -1,10 +1,10 @@
 import * as bcrypt from 'bcrypt';
-import { Token } from './auth.service';
+import { AuthTokenDto } from './dto/AuthTokenDto';
 
 export const createTokenObject = (
 	access_token: string,
 	refresh_token: string,
-): Token => {
+): AuthTokenDto => {
 	return {
 		accessToken: access_token,
 		refreshToken: refresh_token,
