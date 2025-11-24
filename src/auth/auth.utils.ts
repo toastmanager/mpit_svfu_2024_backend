@@ -1,5 +1,5 @@
 import * as bcrypt from 'bcrypt';
-import { AuthTokenDto } from './dto/AuthTokenDto';
+import { AuthTokenDto } from './dto/auth-token.dto';
 
 export const createTokenObject = (
 	access_token: string,

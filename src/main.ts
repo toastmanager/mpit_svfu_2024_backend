@@ -14,7 +14,12 @@ async function bootstrap() {
 		defaultVersion: '1',
 	})
 		.setGlobalPrefix(APP_ROUTE_PREFIX)
-		.useGlobalPipes(new ValidationPipe())
+		.useGlobalPipes(
+			new ValidationPipe({
+				transform: true,
+				whitelist: true,
+			}),
+		)
 		.use(cookieParser())
 		.enableCors({
 			credentials: true,
@@ -26,11 +31,11 @@ async function bootstrap() {
 		.addBearerAuth()
 		.build();
 	const documentFactory = () => SwaggerModule.createDocument(app, config);
-	SwaggerModule.setup(
-		`${APP_ROUTE_PREFIX}/:version/docs`,
-		app,
-		documentFactory,
-	);
+	SwaggerModule.setup(`${APP_ROUTE_PREFIX}/swagger`, app, documentFactory, {
+		swaggerOptions: {
+			persistAuthorization: true,
+		},
+	});
 
 	await app.listen(process.env.PORT ?? 3000);
 }

@@ -1,161 +1,166 @@
-import { Injectable } from '@nestjs/common';
-import { PrismaService } from 'src/prisma.service';
-import { Place, PlaceType, Prisma } from '@prisma/client';
-import { calcScore } from './places.utils';
+import { Injectable, Logger } from '@nestjs/common';
+import { PlacesMediaService } from './places-media.service';
+import { PlacesRepository } from './repositories/places.repository';
+import { CreatePlaceParams } from './domain/params/create-place.params';
+import { Place } from './domain/place';
+import { PlaceFilters } from './domain/place-filters';
+import { UpdatePlaceParams } from './domain/params/update-place.params';
 
 @Injectable()
 export class PlacesService {
-	constructor(private readonly prisma: PrismaService) {}
+	private readonly logger: Logger = new Logger(PlacesService.name);
 
-	async create(
-		data: Prisma.PlaceCreateInput,
-		coords: {
-			latitude: number;
-			longitude: number;
-		},
-	): Promise<Place> {
-		const place = await this.prisma.place.create({
-			data,
+	constructor(
+		private readonly placesMediaService: PlacesMediaService,
+		private readonly placesRepository: PlacesRepository,
+	) {}
+
+	async addImage({
+		id,
+		buffer,
+		filename,
+	}: {
+		id: number;
+		buffer: Buffer;
+		filename: string;
+	}): Promise<string> {
+		const imageKey = await this.placesMediaService.uploadPlaceImage({
+			file: buffer,
+			filename: filename,
 		});
-		await this.prisma.$executeRaw`
-			UPDATE places
-			SET coords=ST_SetSRID(ST_MakePoint(${coords.longitude}, ${coords.latitude}), 4326)
-			WHERE id=${place.id}
-		`;
-		const updatedPlace = await this.prisma.place.findUnique({
-			where: {
-				id: place.id,
-			},
-		});
-		return updatedPlace;
-	}
 
-	async findAll(params: {
-		skip?: number;
-		take?: number;
-		cursor?: Prisma.PlaceWhereUniqueInput;
-		where?: Prisma.PlaceWhereInput;
-		orderBy?: Prisma.PlaceOrderByWithRelationInput;
-		include?: Prisma.PlaceInclude;
-	}): Promise<Place[]> {
-		const { skip, take, cursor, where, orderBy, include } = params;
-		const entities = await this.prisma.place.findMany({
-			skip,
-			take,
-			cursor,
-			where,
-			orderBy,
-			include: { ...include, reviews: true },
-		});
-		return entities.map((entity, _) => ({
-			...entity,
-			score: calcScore(entity.reviews),
-		}));
-	}
-
-	async findOne(params: {
-		where: Prisma.PlaceWhereUniqueInput;
-		select?: Prisma.PlaceSelect;
-		omit?: Prisma.PlaceOmit;
-	}): Promise<any | null> {
-		let entity = await this.prisma.place.findUnique({
-			where: params.where,
-			omit: params.omit,
-			include: {
-				author: true,
-				reviews: {
-					include: {
-						author: true,
-					},
-				},
-			},
-		});
-		return { ...entity, score: calcScore(entity?.reviews) };
-	}
-
-	async update(params: {
-		where: Prisma.PlaceWhereUniqueInput;
-		data: Prisma.PlaceUpdateInput;
-		coords?: {
-			longitude?: number;
-			latitude?: number;
-		};
-	}): Promise<Place> {
-		const { where, data } = params;
-		const place = await this.prisma.place.update({
-			data,
-			where,
-		});
-		if (params.coords?.latitude && params.coords?.longitude) {
-			await this.prisma.$executeRaw`
-				UPDATE places
-				SET coords=ST_SetSRID(ST_MakePoint(${params.coords.longitude}, ${params.coords.latitude}), 4326)
-				WHERE id=${place.id}
-			`;
-		}
-		return place;
-	}
-
-	async remove(where: Prisma.PlaceWhereUniqueInput): Promise<Place> {
-		return this.prisma.place.delete({
-			where: where,
-		});
-	}
-
-	async findClosest(id: number): Promise<any> {
-		const { longitude, latitude, type } = (
-			await this.prisma.$queryRaw`
-				SELECT ST_X(coords) AS longitude, ST_Y(coords) AS latitude, type
-				FROM places
-				WHERE id=${id}
-			`
-		)[0];
-
-		const maxDistanceKm = [PlaceType.NATURE].includes(type) ? 60 : 10;
-		const closestPlacesData: {
-			id: number;
-			distance: number;
-		}[] = await this.prisma.$queryRaw`
-			SELECT
-				id,
-				ST_Distance(coords::geography, ST_SetSRID(ST_MakePoint(${longitude}, ${latitude}), 4326)::geography)/1000.0 AS distance
-			FROM places
-			WHERE ST_Distance(coords::geography, ST_SetSRID(ST_MakePoint(${longitude}, ${latitude}), 4326)::geography)/1000.0 <= ${maxDistanceKm}
-			ORDER BY distance
-			LIMIT 10
-		`;
-
-		const res = [];
-		for (const placeData of closestPlacesData) {
-			if (placeData.id === id) {
-				continue;
-			}
-			const place = await this.prisma.place.findFirst({
-				where: {
-					id: placeData.id,
-					isPublished: true,
-					OR: [
-						{
-							start: {
-								equals: null,
-							},
-						},
-					],
-				},
-				include: {
-					author: true,
-					reviews: {
-						include: {
-							author: true,
-						},
-					},
-				},
+		try {
+			await this.placesRepository.addImageKey({
+				id: id,
+				key: imageKey,
 			});
-			if (place) {
-				res.push({ ...place, distance: placeData.distance, score: calcScore(place.reviews) });
+		} catch (error) {
+			this.logger.error(
+				`DB Update failed for place ${id}. Rolling back media upload: ${imageKey}`,
+			);
+
+			try {
+				this.placesMediaService.deleteImage({ key: imageKey });
+			} catch (cleanupError) {
+				this.logger.error(
+					`Failed to cleanup orphaned file: ${imageKey}`,
+					cleanupError,
+				);
 			}
+
+			throw error;
 		}
 
-		return res;
+		return imageKey;
+	}
+
+	async deleteImage({
+		id,
+		key,
+	}: {
+		id: number;
+		key: string;
+	}): Promise<Place> {
+		try {
+			await this.placesRepository.deleteImageKey({
+				id: id,
+				key: key,
+			});
+
+			const updatedPlace: Place =
+				await this.placesRepository.findOneById(id);
+
+			await this.placesMediaService.deleteImage({ key: key });
+
+			return updatedPlace;
+		} catch (error) {
+			this.logger.error(
+				`Failed to delete image key "${key}" from place with id "${id}"`,
+				error,
+			);
+			throw error;
+		}
+	}
+
+	async findOneImageUrls({ id }: { id: number }): Promise<string[]> {
+		const place: Place = await this.placesRepository.findOneById(id);
+		const { imageKeys } = place;
+
+		const imageUrls: string[] = [];
+		for (const key of imageKeys) {
+			imageUrls.push(
+				await this.placesMediaService.getImageUrl({
+					key: key,
+				}),
+			);
+		}
+
+		return imageUrls;
+	}
+
+	async findOneById({ id }: { id: number }): Promise<Place> {
+		return this.placesRepository.findOneById(id);
+	}
+
+	async create({
+		authorId,
+		params,
+	}: {
+		authorId: number;
+		params: CreatePlaceParams;
+	}): Promise<number> {
+		try {
+			const id = await this.placesRepository.create({ authorId, params });
+			return id;
+		} catch (error) {
+			this.logger.error(
+				`Failed to create place with author id "${authorId}"`,
+				error,
+			);
+			throw error;
+		}
+	}
+
+	async findAllWithFilters(query: PlaceFilters): Promise<Place[]> {
+		return this.placesRepository.findAllWithFilters(query);
+	}
+
+	async findUserPublished({ userId }: { userId: number }): Promise<Place[]> {
+		return this.placesRepository.findUserPublished({ userId });
+	}
+
+	async update({
+		id,
+		data,
+	}: {
+		id: number;
+		data: UpdatePlaceParams;
+	}): Promise<void> {
+		await this.placesRepository.update({
+			id,
+			params: data,
+		});
+	}
+
+	async delete({ id }: { id: number }): Promise<void> {
+		await this.placesRepository.delete({ id });
+	}
+
+	async findUserDrafts({ userId }: { userId: number }): Promise<Place[]> {
+		return await this.placesRepository.findUserDrafts({ userId });
+	}
+
+	async findUserPlacesOnModeration({
+		userId,
+	}: {
+		userId: number;
+	}): Promise<Place[]> {
+		return await this.placesRepository.findUserPlacesOnModeration({
+			userId,
+		});
+	}
+
+	async findClosest(id: number): Promise<Place[]> {
+		return this.placesRepository.findClosest({ id });
 	}
 }

@@ -16,198 +16,64 @@ import { PlacesService } from './places.service';
 import { CreatePlaceDto } from './dto/create-place.dto';
 import { UpdatePlaceDto } from './dto/update-place.dto';
 import { JwtAuthGuard } from 'src/auth/guards/jwt.guard';
-import { Activity, Place, PlaceType, Prisma } from '@prisma/client';
-import { ApiBearerAuth, ApiConsumes, ApiQuery } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiConsumes } from '@nestjs/swagger';
 import { PlaceReviewsService } from './reviews/place-reviews.service';
 import { CreatePlaceReviewDto } from './reviews/dto/create-place-review.dto';
 import { UpdatePlaceReviewDto } from './reviews/dto/update-place-review.dto';
-import { PlacesStorageRepository } from './places.storage';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { UploadPlaceImagesDto } from './dto/upload-place-images.dto';
+import { PlaceDto } from './dto/place.dto';
+import { GetPlacesDto } from './dto/get-places.dto';
+import { PlaceMapper } from './places.mapper';
 
 @Controller('places')
 export class PlacesController {
 	constructor(
 		private readonly placesService: PlacesService,
 		private readonly reviewsService: PlaceReviewsService,
-		private readonly placesStorage: PlacesStorageRepository,
+		private readonly placeMapper: PlaceMapper,
 	) {}
 
 	@Post()
 	@UseGuards(JwtAuthGuard)
 	@ApiBearerAuth()
-	create(@Request() req: any, @Body() createPlaceDto: CreatePlaceDto) {
+	create(
+		@Request() req: any,
+		@Body() createPlaceDto: CreatePlaceDto,
+	): Promise<number> {
 		const { user } = req;
-		const { longitude, latitude, ...clearCreatePlaceDto } = createPlaceDto;
-		return this.placesService.create(
-			{
-				...clearCreatePlaceDto,
-				author: {
-					connect: {
-						id: user.id,
-					},
-				},
-			},
-			{
-				latitude: latitude,
-				longitude: longitude,
-			},
-		);
-	}
+		const { longitude, latitude, ...data } = createPlaceDto;
 
-	@Get()
-	@ApiQuery({ name: 'types', required: false, type: String })
-	@ApiQuery({ name: 'age_restriction', required: false, type: String })
-	@ApiQuery({ name: 'activities', required: false, type: String })
-	@ApiQuery({ name: 'min_price', required: false, type: Number })
-	@ApiQuery({ name: 'max_price', required: false, type: Number })
-	@ApiQuery({ name: 'start', required: false, type: Date })
-	@ApiQuery({ name: 'end', required: false, type: Date })
-	@ApiQuery({ name: 'search', required: false, type: String })
-	findAll(
-		@Query('types') typesQuery?: string,
-		@Query('age_restriction') ageRestrictionsQuery?: string,
-		@Query('activities') activitiesQuery?: string,
-		@Query('min_price') minPriceQuery?: string,
-		@Query('max_price') maxPriceQuery?: string,
-		@Query('start') startQuery?: string,
-		@Query('end') endQuery?: string,
-		@Query('search') searchQuery?: string,
-	) {
-		const types = typesQuery
-			? typesQuery.split(',').reduce((result, element) => {
-					const type = PlaceType[element];
-					if (type) {
-						result.push(type);
-					}
-					return result;
-				}, [])
-			: undefined;
-		const ageRestriction = isNaN(Number(ageRestrictionsQuery))
-			? undefined
-			: Number(ageRestrictionsQuery);
-		const activities: Activity[] = activitiesQuery
-			? activitiesQuery.split(',').reduce((result, element) => {
-					const activity = Activity[element];
-					if (activity) {
-						result.push(activity);
-					}
-					return result;
-				}, [])
-			: undefined;
-		const minPrice =
-			minPriceQuery || isNaN(Number(minPriceQuery))
-				? undefined
-				: Number(minPriceQuery);
-		const maxPrice =
-			maxPriceQuery == '' || isNaN(Number(maxPriceQuery))
-				? undefined
-				: Number(maxPriceQuery);
-		const start =
-			startQuery == undefined || startQuery == ''
-				? new Date()
-				: new Date(startQuery);
-		const end =
-			endQuery == undefined || endQuery == ''
-				? undefined
-				: new Date(endQuery);
-		const search =
-			searchQuery == undefined || searchQuery == ''
-				? undefined
-				: searchQuery;
-
-		return this.placesService.findAll({
-			orderBy: {
-				start: 'asc',
-			},
-			where: {
-				isPublished: true,
-				OR: search
-					? [
-							{
-								title: {
-									contains: search,
-									mode: 'insensitive',
-								},
-							},
-							{
-								description: {
-									contains: search,
-									mode: 'insensitive',
-								},
-							},
-							{
-								locationName: {
-									contains: search,
-									mode: 'insensitive',
-								},
-							},
-						]
-					: undefined,
-				AND: [
-					start != undefined
-						? {
-								OR: [
-									{
-										start: {
-											equals: null,
-										},
-									},
-									{
-										start: {
-											gte: start,
-										},
-									},
-								],
-							}
-						: {},
-					end != undefined
-						? {
-								OR: [
-									{
-										end: {
-											equals: null,
-										},
-									},
-									{
-										end: {
-											lte: end,
-										},
-									},
-								],
-							}
-						: {},
-				],
-				type: {
-					in: types,
-				},
-				ageRestriction: {
-					lte: ageRestriction,
-				},
-				activity: {
-					in: activities,
-				},
-				price: {
-					gte: minPrice,
-					lte: maxPrice,
+		return this.placesService.create({
+			authorId: +user.sub,
+			params: {
+				...data,
+				coordinates: {
+					latitude,
+					longitude,
 				},
 			},
 		});
 	}
 
+	@Get()
+	async findAll(@Query() query: GetPlacesDto): Promise<PlaceDto[]> {
+		const places = await this.placesService.findAllWithFilters(query);
+		const placeDtos = await this.placeMapper.toResponseList(places);
+		return placeDtos;
+	}
+
 	@Get('user/:id')
-	async findUserPublished(@Param('id') id: string) {
-		const places = await this.placesService.findAll({
-			where: {
-				authorId: +id,
-				isPublished: true,
-			},
+	async findUserPublished(@Param('id') id: number): Promise<PlaceDto[]> {
+		const places = await this.placesService.findUserPublished({
+			userId: id,
 		});
 		return places;
 	}
 
 	@Get('user/:id/reviews')
 	findUserReviews(@Param('id') id: string) {
+		// TODO: Add response type
 		return this.reviewsService.findAll({
 			where: {
 				place: {
@@ -224,25 +90,13 @@ export class PlacesController {
 	}
 
 	@Get('user/:id/drafts')
-	findUserDrafts(@Param('id') id: string) {
-		return this.placesService.findAll({
-			where: {
-				id: +id,
-				isPublished: false,
-				onModeration: false,
-			},
-		});
+	findUserDrafts(@Param('id') id: number): Promise<PlaceDto[]> {
+		return this.placesService.findUserDrafts({ userId: id });
 	}
 
 	@Get('user/:id/on_moderation')
-	findUserPlacesOnModeration(@Param('id') id: string) {
-		return this.placesService.findAll({
-			where: {
-				id: +id,
-				isPublished: false,
-				onModeration: true,
-			},
-		});
+	findUserPlacesOnModeration(@Param('id') id: number): Promise<PlaceDto[]> {
+		return this.placesService.findUserPlacesOnModeration({ userId: id });
 	}
 
 	@Get('reviews')
@@ -251,24 +105,10 @@ export class PlacesController {
 	}
 
 	@Get(':id/images')
-	async findOneImages(@Param('id') id: string) {
-		const place: Place = await this.placesService.findOne({
-			where: {
-				id: +id,
-			},
+	async findOneImageUrls(@Param('id') id: number): Promise<string[]> {
+		return this.placesService.findOneImageUrls({
+			id: id,
 		});
-		const { imageKeys } = place;
-
-		const imageUrls: string[] = [];
-		for (const key of imageKeys) {
-			imageUrls.push(
-				await this.placesStorage.getUrl({
-					objectKey: key,
-				}),
-			);
-		}
-
-		return imageUrls;
 	}
 
 	@Post(':id/images')
@@ -277,104 +117,66 @@ export class PlacesController {
 	@ApiConsumes('multipart/form-data')
 	@UseInterceptors(FileInterceptor('image'))
 	async addImage(
-		@Param('id') id: string,
+		@Param('id') id: number,
 		@Body() _: UploadPlaceImagesDto,
 		@UploadedFile() image: Express.Multer.File,
-	) {
-		const imageKey = await this.placesStorage.put({
-			file: image.buffer,
+	): Promise<string> {
+		return this.placesService.addImage({
+			id: id,
+			buffer: image.buffer,
 			filename: image.originalname,
 		});
-
-		await this.placesService.update({
-			where: {
-				id: +id,
-			},
-			data: {
-				imageKeys: {
-					push: imageKey,
-				},
-			},
-		});
-
-		return imageKey;
 	}
 
 	@Delete(':id/images/:imageKey')
 	@UseGuards(JwtAuthGuard)
 	@ApiBearerAuth()
 	async deleteImage(
-		@Param('id') id: string,
+		@Param('id') id: number,
 		@Param('imageKey') imageKey: string,
-	) {
-		await this.placesStorage.delete({
-			objectKey: imageKey,
+	): Promise<void> {
+		await this.placesService.deleteImage({
+			id: id,
+			key: imageKey,
 		});
-
-		const place: Place = await this.placesService.findOne({
-			where: {
-				id: +id,
-			},
-		});
-
-		const updatedPlace = await this.placesService.update({
-			where: {
-				id: +id,
-			},
-			data: {
-				imageKeys: {
-					set: place.imageKeys.filter((key) => key != imageKey),
-				},
-			},
-		});
-
-		return updatedPlace;
 	}
 
 	@Get(':id')
-	findOne(@Param('id') id: string) {
-		return this.placesService.findOne({
-			where: {
-				id: +id,
-			},
-		});
+	findOne(@Param('id') id: number): Promise<PlaceDto> {
+		return this.placesService.findOneById({ id });
 	}
 
 	@Patch(':id')
 	@UseGuards(JwtAuthGuard)
 	@ApiBearerAuth()
-	update(@Param('id') id: string, @Body() updatePlaceDto: UpdatePlaceDto) {
-		const { longitude, latitude, ...clearUpdatePlaceDto } = updatePlaceDto;
-		return this.placesService.update({
-			where: {
-				id: +id,
-			},
-			data: clearUpdatePlaceDto,
-			coords: {
-				longitude: longitude,
-				latitude: latitude,
-			},
+	async update(
+		@Param('id') id: number,
+		@Body() updatePlaceDto: UpdatePlaceDto,
+	): Promise<void> {
+		await this.placesService.update({
+			id: id,
+			data: updatePlaceDto,
 		});
 	}
 
 	@Delete(':id')
 	@UseGuards(JwtAuthGuard)
 	@ApiBearerAuth()
-	remove(@Param('id') id: string) {
-		return this.placesService.remove({
+	async remove(@Param('id') id: string): Promise<void> {
+		await this.placesService.delete({
 			id: +id,
 		});
 	}
 
 	@Get(':id/closest')
-	async findClosest(@Param('id') id: string) {
+	async findClosest(@Param('id') id: string): Promise<PlaceDto[]> {
 		const places = await this.placesService.findClosest(+id);
 		return places;
 	}
 
 	@Get(':id/reviews')
 	findPlaceAllReviews(@Param('id') id: string) {
-		console.log('YA3');
+		// TODO: Add response type
 		return this.reviewsService.findAll({
 			where: {
 				placeId: +id,
@@ -390,6 +192,7 @@ export class PlacesController {
 		@Param('id') id: string,
 		@Body() createPlaceReviewDto: CreatePlaceReviewDto,
 	) {
+		// TODO: Add response type
 		const { user } = req;
 		return this.reviewsService.create({
 			...createPlaceReviewDto,
@@ -413,6 +216,7 @@ export class PlacesController {
 		@Param('id') id: string,
 		@Body() updatePlaceReviewDto: UpdatePlaceReviewDto,
 	) {
+		// TODO: Add response type
 		return this.reviewsService.update({
 			where: {
 				id: +id,
@@ -425,6 +229,7 @@ export class PlacesController {
 	@UseGuards(JwtAuthGuard)
 	@ApiBearerAuth()
 	removeReview(@Param('id') id: string) {
+		// TODO: Add response type
 		return this.reviewsService.remove({
 			id: +id,
 		});

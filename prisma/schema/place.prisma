@@ -9,7 +9,7 @@ model Place {
     activity       Activity
     ageRestriction Int                                   @default(0) @map("ageRestrictions")
     price          Decimal                               @db.Money
-    prevPrice      Decimal                               @default(0) @db.Money
+    prevPrice      Decimal?                              @default(0) @db.Money
     isPublished    Boolean                               @default(false)
     onModeration   Boolean                               @default(false)
     start          DateTime?

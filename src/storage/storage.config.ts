@@ -22,4 +22,8 @@ export class StorageConfig {
 	@IsNotEmpty()
 	@Value('S3_REGION')
 	region: string;
+
+	@IsNotEmpty()
+	@Value('S3_BUCKET_NAME')
+	bucketName: string;
 }

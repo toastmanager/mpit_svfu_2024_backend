@@ -4,12 +4,14 @@ import { AuthModule } from './auth/auth.module';
 import { ConfigifyModule } from '@itgorillaz/configify';
 import { PlacesModule } from './places/places.module';
 import { RoutesModule } from './routes/routes.module';
+import { StorageModule } from './storage/storage.module';
 
 @Module({
 	imports: [
+		ConfigifyModule.forRootAsync(),
 		UsersModule,
 		AuthModule,
-		ConfigifyModule.forRootAsync(),
+		StorageModule,
 		PlacesModule,
 		RoutesModule,
 	],

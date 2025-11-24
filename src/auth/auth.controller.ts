@@ -14,11 +14,13 @@ import { CreateUserDto } from 'src/users/dto/create-user.dto';
 import { UsersService } from 'src/users/users.service';
 import { JwtAuthGuard } from './guards/jwt.guard';
 import {
+	ApiBadRequestResponse,
 	ApiBearerAuth,
-	ApiInternalServerErrorResponse,
+	ApiForbiddenResponse,
 	ApiOkResponse,
 	ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
+import { UserDto } from 'src/users/dto/user.dto';
 
 const refreshTokenCookieOptions = {
 	expires: new Date(new Date().getTime() + 30 * 24 * 60 * 60 * 1000), // Change according to refresh token expire time
@@ -36,7 +38,8 @@ export class AuthController {
 	@Post('me')
 	@ApiBearerAuth()
 	@UseGuards(JwtAuthGuard)
-	me(@Request() req: any) {
+	@ApiUnauthorizedResponse()
+	me(@Request() req: any): Promise<UserDto> {
 		const { user } = req;
 		return this.usersService.findOne({
 			where: {
@@ -46,10 +49,11 @@ export class AuthController {
 	}
 
 	@Post('login')
+	@ApiBadRequestResponse()
 	async login(
 		@Body() loginDto: LoginDto,
 		@Response({ passthrough: true }) response: any,
-	) {
+	): Promise<AuthTokenDto> {
 		const token = await this.authService.login(loginDto);
 
 		await this.setRefreshTokenInCookie(response, token.refreshToken);
@@ -58,6 +62,7 @@ export class AuthController {
 	}
 
 	@Post('logout')
+	@ApiUnauthorizedResponse()
 	async logout(
 		@Response({ passthrough: true }) response: any,
 	): Promise<{ message: string }> {
@@ -66,10 +71,11 @@ export class AuthController {
 	}
 
 	@Post('register')
+	@ApiForbiddenResponse()
 	async register(
 		@Body() createUserDto: CreateUserDto,
 		@Response({ passthrough: true }) response: any,
-	) {
+	): Promise<AuthTokenDto> {
 		const token = await this.authService.register(createUserDto);
 
 		await this.setRefreshTokenInCookie(response, token.refreshToken);
@@ -78,15 +84,11 @@ export class AuthController {
 	}
 
 	@Post('refresh')
-	@ApiOkResponse({
-		type: AuthTokenDto,
-	})
 	@ApiUnauthorizedResponse()
-	@ApiInternalServerErrorResponse()
 	async refresh(
 		@Request() request: any,
 		@Response({ passthrough: true }) response: any,
-	) {
+	): Promise<AuthTokenDto> {
 		const cookieRefreshToken = request.cookies['refresh_token'];
 
 		try {
