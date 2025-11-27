@@ -1,0 +1,16 @@
+model PlaceReview {
+    id Int @id @default(autoincrement())
+
+    score Int
+    text  String
+
+    createdAt DateTime @default(now()) @map("created_at")
+    updatedAt DateTime @updatedAt @map("updated_at")
+
+    authorId Int   @map("author_id")
+    author   User  @relation(fields: [authorId], references: [id])
+    placeId  Int   @map("place_id")
+    place    Place @relation(fields: [placeId], references: [id])
+
+    @@map("place_reviews")
+}

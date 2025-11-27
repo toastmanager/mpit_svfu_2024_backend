@@ -1,12 +1,9 @@
-import { ApiProperty } from '@nestjs/swagger';
-import { IsNumber, IsString } from 'class-validator';
+import { IsInt, Min } from 'class-validator';
 
 export class CreatePlaceReviewDto {
-	@ApiProperty()
-	@IsString()
 	text: string;
-
-	@ApiProperty()
-	@IsNumber()
+	@IsInt()
+	@Min(0)
+	//TODO: add max
 	score: number;
 }

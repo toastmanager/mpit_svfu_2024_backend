@@ -25,6 +25,7 @@ import { UploadPlaceImagesDto } from './dto/upload-place-images.dto';
 import { PlaceDto } from './dto/place.dto';
 import { GetPlacesDto } from './dto/get-places.dto';
 import { PlaceMapper } from './places.mapper';
+import { PlaceReviewDto } from './reviews/dto/place-review.dto';
 
 @Controller('places')
 export class PlacesController {
@@ -72,21 +73,8 @@ export class PlacesController {
 	}
 
 	@Get('user/:id/reviews')
-	findUserReviews(@Param('id') id: string) {
-		// TODO: Add response type
-		return this.reviewsService.findAll({
-			where: {
-				place: {
-					authorId: +id,
-				},
-			},
-			include: {
-				author: true,
-			},
-			orderBy: {
-				createdAt: 'desc',
-			},
-		});
+	findUserReviews(@Param('id') id: number): Promise<PlaceReviewDto[]> {
+		return this.reviewsService.findAllByUserId({ userId: id });
 	}
 
 	@Get('user/:id/drafts')
@@ -100,8 +88,8 @@ export class PlacesController {
 	}
 
 	@Get('reviews')
-	findAllReviews() {
-		return this.reviewsService.findAll({});
+	findAllReviews(): Promise<PlaceReviewDto[]> {
+		return this.reviewsService.findAll();
 	}
 
 	@Get(':id/images')
@@ -175,13 +163,8 @@ export class PlacesController {
 	}
 
 	@Get(':id/reviews')
-	findPlaceAllReviews(@Param('id') id: string) {
-		// TODO: Add response type
-		return this.reviewsService.findAll({
-			where: {
-				placeId: +id,
-			},
-		});
+	findPlaceAllReviews(@Param('id') id: number): Promise<PlaceReviewDto[]> {
+		return this.reviewsService.findAllByPlaceId({ placeId: id });
 	}
 
 	@Post(':id/reviews')
@@ -189,38 +172,26 @@ export class PlacesController {
 	@ApiBearerAuth()
 	createReview(
 		@Request() req: any,
-		@Param('id') id: string,
+		@Param('id') id: number,
 		@Body() createPlaceReviewDto: CreatePlaceReviewDto,
-	) {
-		// TODO: Add response type
+	): Promise<number> {
 		const { user } = req;
 		return this.reviewsService.create({
-			...createPlaceReviewDto,
-			place: {
-				connect: {
-					id: +id,
-				},
-			},
-			author: {
-				connect: {
-					id: user.id,
-				},
-			},
+			authorId: +user.sub,
+			placeId: id,
+			data: createPlaceReviewDto,
 		});
 	}
 
 	@Patch('reviews/:id')
 	@UseGuards(JwtAuthGuard)
 	@ApiBearerAuth()
-	updateReview(
-		@Param('id') id: string,
+	async updateReview(
+		@Param('id') id: number,
 		@Body() updatePlaceReviewDto: UpdatePlaceReviewDto,
-	) {
-		// TODO: Add response type
-		return this.reviewsService.update({
-			where: {
-				id: +id,
-			},
+	): Promise<void> {
+		await this.reviewsService.update({
+			id: id,
 			data: updatePlaceReviewDto,
 		});
 	}
@@ -228,9 +199,8 @@ export class PlacesController {
 	@Delete('reviews/:id')
 	@UseGuards(JwtAuthGuard)
 	@ApiBearerAuth()
-	removeReview(@Param('id') id: string) {
-		// TODO: Add response type
-		return this.reviewsService.remove({
+	async deleteReview(@Param('id') id: string) {
+		await this.reviewsService.delete({
 			id: +id,
 		});
 	}

@@ -1,62 +1,48 @@
 import { Injectable } from '@nestjs/common';
-import { PlaceReview, Prisma } from '@prisma/client';
-import { PrismaService } from 'src/prisma.service';
+import { UpdatePlaceReviewParams } from './domain/params/update-review.params';
+import { PlaceReviewsRepository } from './repositories/place-reviews.repository';
 
 @Injectable()
 export class PlaceReviewsService {
-	constructor(private readonly prisma: PrismaService) {}
+	constructor(
+		private readonly placeReviewsRepository: PlaceReviewsRepository,
+	) {}
 
-	async create(data: Prisma.PlaceReviewCreateInput): Promise<PlaceReview> {
-		return this.prisma.placeReview.create({
-			data,
-		});
+	async create({
+		data,
+		authorId,
+		placeId,
+	}: {
+		data: CreateReviewParams;
+		authorId: number;
+		placeId: number;
+	}) {
+		return this.placeReviewsRepository.create({ data, authorId, placeId });
 	}
 
-	async findAll(params: {
-		skip?: number;
-		take?: number;
-		cursor?: Prisma.PlaceReviewWhereUniqueInput;
-		where?: Prisma.PlaceReviewWhereInput;
-		include?: Prisma.PlaceReviewInclude;
-		orderBy?: Prisma.PlaceReviewOrderByWithRelationInput;
-	}): Promise<PlaceReview[]> {
-		const { skip, take, cursor, where, orderBy, include } = params;
-		return this.prisma.placeReview.findMany({
-			skip,
-			take,
-			cursor,
-			where,
-			orderBy,
-			include,
-		});
+	async findAllByUserId({ userId }: { userId: number }) {
+		return this.placeReviewsRepository.findAllByUserId({ userId });
 	}
 
-	async findOne(params: {
-		where: Prisma.PlaceReviewWhereUniqueInput;
-		omit?: Prisma.PlaceReviewOmit;
-	}): Promise<PlaceReview | null> {
-		return this.prisma.placeReview.findUnique({
-			where: params.where,
-			omit: params.omit,
-		});
+	async findAllByPlaceId({ placeId }: { placeId: number }) {
+		return this.placeReviewsRepository.findAllByPlaceId({ placeId });
 	}
 
-	async update(params: {
-		where: Prisma.PlaceReviewWhereUniqueInput;
-		data: Prisma.PlaceReviewUpdateInput;
-	}): Promise<PlaceReview> {
-		const { where, data } = params;
-		return this.prisma.placeReview.update({
-			data,
-			where,
-		});
+	async findAll(): Promise<PlaceReview[]> {
+		return this.placeReviewsRepository.findAll();
 	}
 
-	async remove(
-		where: Prisma.PlaceReviewWhereUniqueInput,
-	): Promise<PlaceReview> {
-		return this.prisma.placeReview.delete({
-			where: where,
-		});
+	async update({
+		id,
+		data,
+	}: {
+		id: number;
+		data: UpdatePlaceReviewParams;
+	}): Promise<void> {
+		await this.placeReviewsRepository.update({ id, data });
+	}
+
+	async delete({ id }: { id: number }): Promise<void> {
+		await this.placeReviewsRepository.delete({ id });
 	}
 }

@@ -4,25 +4,25 @@ model Place {
     title          String
     type           PlaceType
     description    String
-    locationName   String
-    redirectUrl    String?
+    locationName   String                                @map("location_name")
+    redirectUrl    String?                               @map("redirect_url")
     activity       Activity
-    ageRestriction Int                                   @default(0) @map("ageRestrictions")
+    ageRestriction Int                                   @default(0) @map("age_restriction")
     price          Decimal                               @db.Money
-    prevPrice      Decimal?                              @default(0) @db.Money
-    isPublished    Boolean                               @default(false)
-    onModeration   Boolean                               @default(false)
+    prevPrice      Decimal?                              @default(0) @map("prev_price") @db.Money
+    isPublished    Boolean                               @default(false) @map("is_published")
+    onModeration   Boolean                               @default(false) @map("on_moderation")
     start          DateTime?
     end            DateTime?
-    imageKeys      String[]
+    imageKeys      String[]                              @map("image_keys")
     coords         Unsupported("geometry(Point, 4326)")?
     address        String?
     contacts       String[]
 
-    createdAt DateTime @default(now())
-    updatedAt DateTime @updatedAt
+    createdAt DateTime @default(now()) @map("created_at")
+    updatedAt DateTime @updatedAt @map("updated_at")
 
-    authorId Int
+    authorId Int  @map("author_id")
     author   User @relation(fields: [authorId], references: [id])
 
     routes  Route[]
@@ -52,20 +52,4 @@ enum Activity {
     MEDIUM
     ADVANCED
     HIGH
-}
-
-model PlaceReview {
-    id Int @id @default(autoincrement())
-
-    score Int
-    text  String
-
-    createdAt DateTime @default(now())
-
-    authorId Int
-    author   User  @relation(fields: [authorId], references: [id])
-    placeId  Int
-    place    Place @relation(fields: [placeId], references: [id])
-
-    @@map("place_reviews")
 }
