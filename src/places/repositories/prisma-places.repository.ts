@@ -170,17 +170,20 @@ export class PrismaPlacesRepository implements PlacesRepository {
 		params: CreatePlaceParams;
 	}): Promise<number> {
 		const { coordinates, ...data } = params;
-		const place = await this.prisma.place.create({
+		const prismaPlace = await this.prisma.place.create({
 			data: { ...data, authorId: authorId },
+			select: {
+				id: true,
+			},
 		});
 
 		await this.prisma.$executeRaw`
 			UPDATE places
 			SET coords=ST_SetSRID(ST_MakePoint(${coordinates.longitude}, ${coordinates.latitude}), 4326)
-			WHERE id=${place.id}
+			WHERE id=${prismaPlace.id}
 		`;
 
-		return place.id;
+		return prismaPlace.id;
 	}
 
 	async addImageKey({ id, key }: { id: number; key: string }): Promise<void> {

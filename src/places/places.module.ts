@@ -31,5 +31,6 @@ import { PlaceReviewPrismaMapper } from './reviews/repositories/mappers/place-re
 			useClass: PrismaPlaceReviewsRepository,
 		},
 	],
+	exports: [PlacePrismaMapper],
 })
 export class PlacesModule {}

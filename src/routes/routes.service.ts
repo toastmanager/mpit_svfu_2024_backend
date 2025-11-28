@@ -1,116 +1,98 @@
 import { Injectable } from '@nestjs/common';
-import { PrismaService } from 'src/prisma.service';
-import { Route, Prisma } from '@prisma/client';
+import { CreateRouteParams } from './domain/params/create-route.params';
+import { Route } from './domain/route';
+import { UpdateRouteParams } from './domain/params/update-route.params';
+import { RoutesRepository } from './repositories/routes.repository';
+import { RouteWithPlaces } from './domain/route-with-places';
 
 @Injectable()
 export class RoutesService {
-	constructor(private readonly prisma: PrismaService) {}
+	constructor(private readonly routesRepository: RoutesRepository) {}
 
-	async create(data: Prisma.RouteCreateInput): Promise<Route> {
-		return this.prisma.route.create({
+	create({
+		authorId,
+		data,
+	}: {
+		authorId: number;
+		data: CreateRouteParams;
+	}): Promise<number> {
+		return this.routesRepository.create({
+			authorId,
 			data,
 		});
 	}
 
-	async findAll(params: {
-		skip?: number;
-		take?: number;
-		cursor?: Prisma.RouteWhereUniqueInput;
-		where?: Prisma.RouteWhereInput;
-		orderBy?: Prisma.RouteOrderByWithRelationInput;
-	}): Promise<Route[]> {
-		const { skip, take, cursor, where, orderBy } = params;
-		return this.prisma.route.findMany({
-			skip,
-			take,
-			cursor,
-			where,
-			orderBy,
-			include: {
-				places: true,
-			},
-		});
+	findAll(): Promise<Route[]> {
+		return this.routesRepository.findAll();
 	}
 
-	async findOne(params: {
-		where: Prisma.RouteWhereUniqueInput;
-		omit?: Prisma.RouteOmit;
-		include?: Prisma.RouteInclude;
-	}) {
-		return this.prisma.route.findUnique({
-			where: params.where,
-			omit: params.omit,
-			include: params.include,
-		});
+	findAllByUser({ userId }: { userId: number }): Promise<Route[]> {
+		return this.routesRepository.findAllByUser({ userId });
 	}
 
-	async update(params: {
-		where: Prisma.RouteWhereUniqueInput;
-		data: Prisma.RouteUpdateInput;
-	}): Promise<Route> {
-		const { where, data } = params;
-		return this.prisma.route.update({
+	findOneById({ id }: { id: number }): Promise<Route> {
+		return this.routesRepository.findOneById({ id });
+	}
+
+	findOneByIdWithPlaces({ id }: { id: number }): Promise<RouteWithPlaces> {
+		return this.routesRepository.findOneByIdWithPlaces({ id });
+	}
+
+	async update({
+		id,
+		data,
+	}: {
+		id: number;
+		data: UpdateRouteParams;
+	}): Promise<void> {
+		await this.routesRepository.update({
+			id,
 			data,
-			where,
 		});
 	}
 
-	async remove(where: Prisma.RouteWhereUniqueInput): Promise<Route> {
-		return this.prisma.route.delete({
-			where: where,
+	async removeById({ id }: { id: number }): Promise<void> {
+		await this.routesRepository.deleteById({
+			id,
 		});
 	}
 
-	async addPlace(routeId: number, placeId: number) {
-		return await this.prisma.route.update({
-			where: {
-				id: routeId,
-			},
-			include: {
-				places: true
-			},
-			data: {
-				places: {
-					connect: {
-						id: placeId,
-					},
-				},
-			},
+	async addPlace({
+		routeId,
+		placeId,
+	}: {
+		routeId: number;
+		placeId: number;
+	}): Promise<void> {
+		await this.routesRepository.addPlace({
+			placeId,
+			routeId,
 		});
 	}
 
-	async removePlace(routeId: number, placeId: number) {
-		return await this.prisma.route.update({
-			where: {
-				id: routeId,
-			},
-			include: {
-				places: true
-			},
-			data: {
-				places: {
-					disconnect: {
-						id: placeId,
-					},
-				},
-			},
+	async removePlace({
+		routeId,
+		placeId,
+	}: {
+		routeId: number;
+		placeId: number;
+	}): Promise<void> {
+		await this.routesRepository.removePlace({
+			routeId,
+			placeId,
 		});
 	}
 
-	async switchPlace(routeId: number, placeId: number) {
-		const route = await this.prisma.route.findFirst({
-			where: {
-				id: routeId,
-			},
-			include: {
-				places: true,
-			},
+	async switchPlace({
+		routeId,
+		placeId,
+	}: {
+		routeId: number;
+		placeId: number;
+	}): Promise<void> {
+		await this.routesRepository.switchPlace({
+			routeId,
+			placeId,
 		});
-
-		if (route.places.find((place) => place.id === placeId)) {
-			return this.removePlace(routeId, placeId);
-		} else {
-			return this.addPlace(routeId, placeId);
-		}
 	}
 }
